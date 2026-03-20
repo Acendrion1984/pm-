@@ -385,6 +385,146 @@
       transition: color 0.3s ease;
     }
 
+    /* ─── TOKEN LOGIN MODAL ─── */
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .login-overlay.hidden { display: none; }
+
+    .login-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px 32px 30px;
+      max-width: 420px;
+      width: 92%;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      animation: modalIn 0.35s cubic-bezier(.34,1.56,.64,1) forwards;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.9) translateY(20px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .login-eyebrow {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .login-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--text);
+      margin-bottom: 4px;
+      letter-spacing: -0.3px;
+    }
+
+    .login-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .field-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    .field-input {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+
+    .field-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(88,166,255,0.15);
+    }
+
+    .field-input:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 13px;
+      border-radius: 10px;
+      border: none;
+      background: var(--accent);
+      color: #0d1117;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+      margin-top: 6px;
+    }
+
+    .login-btn:hover  { opacity: 0.88; transform: translateY(-1px); }
+    .login-btn:active { transform: translateY(0); }
+
+    .login-error {
+      margin-top: 12px;
+      min-height: 18px;
+      font-size: 12.5px;
+      color: #f85149;
+      text-align: center;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .login-footer-note {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 11.5px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+
+    /* Light-mode overrides for modal */
+    body.light-mode .field-input {
+      background: #f0f2f5;
+      color: #1a1e24;
+    }
+
+    body.light-mode .login-btn {
+      color: #ffffff;
+    }
+
     /* ─── RESPONSIVE ─── */
     @media (max-width: 1100px) {
       .grid { grid-template-columns: repeat(3, 1fr); }
@@ -406,6 +546,34 @@
 </head>
 
 <body>
+
+  <!-- ─── TOKEN LOGIN MODAL ─── -->
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-modal">
+      <div class="login-eyebrow">GitHub · API-Zugang</div>
+      <div class="login-title">Token erforderlich</div>
+      <div class="login-sub">Bitte GitHub Personal Access Token eingeben, um fortzufahren.</div>
+
+      <div class="field-group">
+        <div>
+          <label class="field-label" for="ghToken">Personal Access Token</label>
+          <input class="field-input" id="ghToken" type="password"
+                 placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                 autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+
+      <button class="login-btn" id="loginBtn">
+        <i class="fas fa-key" style="margin-right:8px;"></i>Zugang freischalten
+      </button>
+      <div class="login-error" id="loginError"></div>
+
+      <div class="login-footer-note">
+        Schaeffler Technologies AG &amp; Co. KG · ZfP Schweinfurt<br>
+        Nur für autorisierte Benutzer
+      </div>
+    </div>
+  </div>
 
   <div class="header">
     <div class="header-left">
@@ -590,7 +758,9 @@
   </footer>
 
   <script>
-    // ─── Shared theme key (identical to portal) ───
+    // ═══════════════════════════════════════════════
+    // THEME  (shared key with portal)
+    // ═══════════════════════════════════════════════
     const THEME_KEY = 'zfp-theme-preference';
 
     function applyTheme(theme) {
@@ -603,28 +773,105 @@
       }
     }
 
-    function getTheme() {
-      return localStorage.getItem(THEME_KEY) || 'dark';
-    }
+    applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 
-    // Init on load
-    applyTheme(getTheme());
-
-    // Toggle button
     document.getElementById('themeToggle').addEventListener('click', function () {
       const next = document.body.classList.contains('light-mode') ? 'dark' : 'light';
       localStorage.setItem(THEME_KEY, next);
       applyTheme(next);
     });
 
-    // Sync across tabs/windows (portal ↔ app)
     window.addEventListener('storage', function (e) {
-      if (e.key === THEME_KEY) {
-        applyTheme(e.newValue || 'dark');
+      if (e.key === THEME_KEY) applyTheme(e.newValue || 'dark');
+    });
+
+    // ═══════════════════════════════════════════════
+    // TOKEN AUTH
+    // ═══════════════════════════════════════════════
+    const TOKEN_SESSION_KEY = 'zfp_gh_token_ok';
+    const GH_ACCOUNT        = 'Acendrion1984';
+    const GH_REPO           = 'pm-';
+
+    const overlay   = document.getElementById('loginOverlay');
+    const tokenInput = document.getElementById('ghToken');
+    const loginBtn  = document.getElementById('loginBtn');
+    const loginErr  = document.getElementById('loginError');
+
+    // ── Restore session ──
+    if (sessionStorage.getItem(TOKEN_SESSION_KEY) === 'true') {
+      overlay.classList.add('hidden');
+    } else {
+      overlay.classList.remove('hidden');
+      setTimeout(() => tokenInput.focus(), 200);
+    }
+
+    // ── Validate token against GitHub API ──
+    async function validateToken() {
+      const token = tokenInput.value.trim();
+      if (!token) {
+        loginErr.textContent = '⚠ Bitte Token eingeben.';
+        return;
       }
+
+      loginBtn.disabled    = true;
+      loginBtn.textContent = 'Wird geprüft …';
+      loginErr.textContent = '';
+
+      try {
+        // Check access to the specific repo
+        const res = await fetch(
+          `https://api.github.com/repos/${GH_ACCOUNT}/${GH_REPO}`,
+          {
+            headers: {
+              'Authorization': `token ${token}`,
+              'Accept': 'application/vnd.github+json'
+            }
+          }
+        );
+
+        if (res.status === 200 || res.status === 301) {
+          // Valid – store token in sessionStorage (not localStorage for security)
+          sessionStorage.setItem(TOKEN_SESSION_KEY, 'true');
+          sessionStorage.setItem('zfp_gh_token', token);
+          overlay.classList.add('hidden');
+        } else if (res.status === 401) {
+          loginErr.textContent = '❌ Ungültiger Token. Bitte erneut versuchen.';
+          tokenInput.value = '';
+          tokenInput.focus();
+        } else if (res.status === 404) {
+          loginErr.textContent = '❌ Repository nicht gefunden oder kein Zugriff.';
+          tokenInput.value = '';
+          tokenInput.focus();
+        } else {
+          loginErr.textContent = `❌ Fehler ${res.status}. Bitte Netzwerk prüfen.`;
+        }
+      } catch (err) {
+        loginErr.textContent = '❌ Netzwerkfehler. Verbindung prüfen.';
+      } finally {
+        loginBtn.disabled    = false;
+        loginBtn.innerHTML   = '<i class="fas fa-key" style="margin-right:8px;"></i>Zugang freischalten';
+      }
+    }
+
+    loginBtn.addEventListener('click', validateToken);
+    tokenInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') validateToken();
+    });
+
+    // ── Intercept tile clicks – require auth ──
+    document.querySelectorAll('.tile').forEach(function (tile) {
+      tile.addEventListener('click', function (e) {
+        if (sessionStorage.getItem(TOKEN_SESSION_KEY) !== 'true') {
+          e.preventDefault();
+          // Shake modal back open
+          overlay.classList.remove('hidden');
+          tokenInput.focus();
+          loginErr.textContent = '⚠ Bitte zuerst mit Token anmelden.';
+        }
+        // If authenticated, default <a> href behaviour proceeds normally
+      });
     });
   </script>
 
 </body>
 </html>
-
