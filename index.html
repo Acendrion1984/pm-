@@ -155,6 +155,54 @@
     }
     .theme-toggle:hover { transform: scale(1.08) rotate(15deg); border-color: var(--accent); }
 
+
+    /* ── TOKEN BAR (im Header, kein Overlay) ── */
+    .token-bar-row {
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 40px 7px 120px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .token-bar-row.connected { background: rgba(39,174,96,0.06); border-color: rgba(39,174,96,0.18); }
+    .token-bar-label {
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted); white-space: nowrap;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .gh-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--muted); flex-shrink: 0;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .gh-dot.connected { background: #27ae60; box-shadow: 0 0 0 3px rgba(39,174,96,0.22); }
+    .gh-dot.error     { background: #e74c3c; box-shadow: 0 0 0 3px rgba(231,76,60,0.18); }
+    .gh-dot.checking  { background: #f39c12; box-shadow: 0 0 0 3px rgba(243,156,18,0.22); }
+    .token-input-row {
+      flex: 1; min-width: 160px; max-width: 320px;
+      display: flex; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .token-input-row:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,255,0.12); }
+    .token-input-row input {
+      flex: 1; background: transparent; border: none; outline: none;
+      padding: 6px 10px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text);
+    }
+    .token-input-row input::placeholder { color: var(--muted); }
+    .token-connect-btn {
+      padding: 5px 13px; border-radius: 7px; border: none;
+      background: var(--accent); color: #fff;
+      font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 700;
+      cursor: pointer; white-space: nowrap; transition: opacity 0.2s;
+    }
+    body.light-mode .token-connect-btn { color: #fff; }
+    .token-connect-btn:hover { opacity: 0.85; }
+    .token-status-lbl { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+    .token-status-lbl.ok  { color: #27ae60; font-weight: 600; }
+    .token-status-lbl.err { color: #e74c3c; }
+
     .main { max-width: 1280px; margin: 0 auto; padding: 40px 24px; }
 
     .section-label {
@@ -302,23 +350,6 @@
 </head>
 <body>
 
-  <div class="login-overlay" id="loginOverlay">
-    <div class="login-modal">
-      <div class="login-eyebrow">GitHub · API-Zugang</div>
-      <div class="login-title">Token erforderlich</div>
-      <div class="login-sub">Bitte GitHub Personal Access Token eingeben, um fortzufahren.</div>
-      <div class="field-group">
-        <div>
-          <label class="field-label" for="ghToken">Personal Access Token</label>
-          <input class="field-input" id="ghToken" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false" />
-        </div>
-      </div>
-      <button class="login-btn" id="loginBtn"><i class="fas fa-key" style="margin-right:8px;"></i>Zugang freischalten</button>
-      <div class="login-error" id="loginError"></div>
-      <div class="login-footer-note">Schaeffler Technologies AG &amp; Co. KG · ZfP Schweinfurt<br>Nur für autorisierte Benutzer</div>
-    </div>
-  </div>
-
   <div class="header">
     <div class="header-left">
       <div class="header-eyebrow">Schaeffler · ZfP · Schweinfurt</div>
@@ -329,6 +360,17 @@
       <div class="header-badge"><strong>12</strong> Prüfanlagen verfügbar</div>
       <button class="theme-toggle" id="themeToggle" aria-label="Dark/Light Mode umschalten" title="Dark/Light Mode">🌓</button>
     </div>
+  </div>
+
+  <!-- TOKEN BAR – kein Overlay, direkt im Header-Bereich -->
+  <div class="token-bar-row" id="pp_token_bar">
+    <div class="token-bar-label"><i class="fab fa-github"></i> GitHub Token</div>
+    <div class="gh-dot" id="pp_gh_dot" title="Nicht verbunden"></div>
+    <div class="token-input-row">
+      <input type="password" id="ghToken" placeholder="github_pat_… (Enter zum Verbinden)" autocomplete="off" spellcheck="false">
+    </div>
+    <button class="token-connect-btn" id="loginBtn"><i class="fas fa-plug"></i> Verbinden</button>
+    <span class="token-status-lbl" id="pp_token_status">Bitte Token eingeben</span>
   </div>
 
   <div class="main">
@@ -503,22 +545,34 @@
     const GH_ACCOUNT        = 'Acendrion1984';
     const GH_REPO           = 'pm-';
 
-    const overlay    = document.getElementById('loginOverlay');
+    const overlay    = { classList: { add:()=>{}, remove:()=>{} } }; // removed
     const tokenInput = document.getElementById('ghToken');
     const loginBtn   = document.getElementById('loginBtn');
-    const loginErr   = document.getElementById('loginError');
+    const loginErr   = document.getElementById('loginError') || { textContent: '' };
 
+    function ppSetDot(state) {
+      const dot = document.getElementById('pp_gh_dot');
+      const bar = document.getElementById('pp_token_bar');
+      const st  = document.getElementById('pp_token_status');
+      if (dot) dot.className = 'gh-dot' + (state ? ' '+state : '');
+      if (bar) bar.className = 'token-bar-row' + (state === 'connected' ? ' connected' : '');
+      if (st) {
+        st.className = 'token-status-lbl' + (state === 'connected' ? ' ok' : state === 'error' ? ' err' : '');
+        st.textContent = state === 'connected' ? '✅ Verbunden' : state === 'error' ? '❌ Fehler' : state === 'checking' ? 'Wird geprüft …' : 'Bitte Token eingeben';
+      }
+    }
+
+    // Token bar – no overlay
     if (localStorage.getItem(TOKEN_SESSION_KEY) === 'true') {
-      overlay.classList.add('hidden');
-    } else {
-      overlay.classList.remove('hidden');
-      setTimeout(() => tokenInput.focus(), 200);
+      ppSetDot('connected');
+      if (tokenInput) tokenInput.placeholder = 'Token gespeichert ✓';
     }
 
     async function validateToken() {
       const token = tokenInput.value.trim();
-      if (!token) { loginErr.textContent = '⚠ Bitte Token eingeben.'; return; }
+      if (!token) { loginErr.textContent = '⚠ Bitte Token eingeben.'; ppSetDot('error'); return; }
 
+      ppSetDot('checking');
       loginBtn.disabled    = true;
       loginBtn.textContent = 'Wird geprüft …';
       loginErr.textContent = '';
@@ -532,6 +586,8 @@
           localStorage.setItem(TOKEN_SESSION_KEY, 'true');
           localStorage.setItem('zfp_gh_token', token);
           overlay.classList.add('hidden');
+          ppSetDot('connected');
+          if (tokenInput) { tokenInput.value = ''; tokenInput.placeholder = 'Token gespeichert ✓'; }
         } else if (res.status === 401) {
           loginErr.textContent = '❌ Ungültiger Token. Bitte erneut versuchen.';
           tokenInput.value = ''; tokenInput.focus();
@@ -556,9 +612,10 @@
       tile.addEventListener('click', function (e) {
         if (localStorage.getItem(TOKEN_SESSION_KEY) !== 'true') {
           e.preventDefault();
-          overlay.classList.remove('hidden');
-          tokenInput.focus();
-          loginErr.textContent = '⚠ Bitte zuerst mit Token anmelden.';
+          if (tokenInput) tokenInput.focus();
+          ppSetDot('error');
+          const st = document.getElementById('pp_token_status');
+          if (st) { st.textContent = '⚠ Bitte zuerst Token eingeben'; st.className = 'token-status-lbl err'; }
         }
       });
     });
